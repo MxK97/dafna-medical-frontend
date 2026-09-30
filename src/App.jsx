@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { ArrowUpRight, Check, ChevronRight, Diamond, Globe2, Headphones, Heart, LockKeyhole, Mail, MapPin, MessageCircle, ShieldCheck, Star, Stethoscope, Users } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { ArrowUpRight, Check, ChevronRight, Diamond, Globe2, Headphones, Heart, LockKeyhole, Mail, MapPin, MessageCircle, ShieldCheck, Star, Stethoscope, Users, Loader2 } from 'lucide-react';
+import ReCAPTCHA from 'react-google-recaptcha';
 import Navbar from './components/Navbar';
 import SectionHeading from './components/SectionHeading';
 import { detectLocale, translations } from './i18n/translations';
@@ -16,6 +17,7 @@ import mariaAvatar from './assets/avatars/Maria.jpg'
 
 const serviceImages = [cardDental, cardPlastic, cardIvf, cardHair];
 const API_URL = import.meta.env.VITE_API_BASE_URL || '';
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
 
 function InstagramIcon() {
   return (
@@ -48,6 +50,11 @@ export default function App() {
   const [locale, setLocale] = useState(() => localStorage.getItem('dafna-locale') || detectLocale());
   const [form, setForm] = useState({ name: '', email: '', phone: '', treatment: '', message: '', consent: false });
   const [status, setStatus] = useState({ type: '', message: '' });
+
+  const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null);
+  const recaptchaRef = useRef(null);
+
   const t = translations[locale] || translations.en;
 
   useEffect(() => {
@@ -58,19 +65,96 @@ export default function App() {
 
   function scrollTo(id) { document.querySelector(id)?.scrollIntoView({ behavior: 'smooth' }); }
 
+  function handlePhoneChange(e) {
+    let input = e.target.value;
+    input = input.replace(/[^\d+]/g, '');
+    input = input.replace(/(?!^\+)\+/g, '');
+    setForm({ ...form, phone: input });
+  }
+
   async function submitForm(e) {
     e.preventDefault();
     setStatus({ type: '', message: '' });
+
+    if (!captchaToken) {
+      setStatus({
+        type: 'error',
+        message: locale === 'uk' 
+          ? 'Будь ласка, підтвердіть, що ви не робот (пройдіть капчу).' 
+          : 'Please verify that you are not a robot.'
+      });
+      return;
+    }
+
+    const emailTrimmed = form.email.trim().toLowerCase();
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const reservedDomains = ['.test', '.example', '.invalid', '.localhost', '.local'];
+    const isReserved = reservedDomains.some(domain => emailTrimmed.endsWith(domain));
+
+    if (!emailRegex.test(emailTrimmed) || isReserved) {
+      setStatus({ 
+        type: 'error', 
+        message: locale === 'uk' 
+          ? 'Введіть діючий email (домени .test, .example тощо заборонені)' 
+          : 'Please enter a valid, active email address' 
+      });
+      return;
+    }
+
+    const phoneRegex = /^\+?\d{7,15}$/;
+    if (!phoneRegex.test(form.phone.trim())) {
+      setStatus({ 
+        type: 'error', 
+        message: locale === 'uk' 
+          ? 'Введіть коректний номер телефону (наприклад, +380123456789)' 
+          : 'Please enter a valid phone number' 
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 120000); // 2 min
+
     try {
       const response = await fetch(`${API_URL}/api/contact`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, locale }),
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ ...form, locale, captchaToken }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.detail || 'Request failed');
+
+      if (!response.ok) {
+        throw new Error(data.reason || data.detail || t.contact.error);
+      }
+
       setStatus({ type: 'success', message: t.contact.success });
       setForm({ name: '', email: '', phone: '', treatment: '', message: '', consent: false });
-    } catch {
-      setStatus({ type: 'error', message: t.contact.error });
+
+      setCaptchaToken(null);
+      recaptchaRef.current?.reset();
+    } catch (err) {
+      clearTimeout(timeoutId);
+
+      if (err.name === 'AbortError') {
+        setStatus({ 
+          type: 'error', 
+          message: locale === 'uk'
+            ? 'Час очікування відповіді вичерпано (2 хв). Перевірте з’єднання та спробуйте ще раз.'
+            : 'Request timed out (2 min). Please try again.'
+        });
+      } else {
+        setStatus({ type: 'error', message: err.message || t.contact.error });
+      }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -163,11 +247,52 @@ export default function App() {
           <div className="container contact-grid">
             <div className="contact-copy"><div className="eyebrow"><span />{t.contact.eyebrow}<span /></div><h2>{t.contact.title}</h2><p>{t.contact.subtitle}</p><div className="contact-benefits"><div><Headphones /><span>{t.why.items[0]}<small>Dedicated point of contact</small></span></div><div><Diamond /><span>{t.why.items[2]}<small>Built around your needs</small></span></div><div><Globe2 /><span>{t.why.items[5]}<small>International patient support</small></span></div></div></div>
             <form className="contact-form" onSubmit={submitForm}>
-              <div className="form-row"><label><span>{t.contact.name}</span><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></label><label><span>{t.contact.email}</span><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required /></label></div>
-              <div className="form-row"><label><span>{t.contact.phone}</span><input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required /></label><label><span>{t.contact.treatment}</span><select value={form.treatment} onChange={e => setForm({ ...form, treatment: e.target.value })} required><option value="">—</option>{t.contact.options.map(x => <option key={x}>{x}</option>)}</select></label></div>
+              <div className="form-row">
+                <label>
+                  <span>{t.contact.name}</span>
+                  <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+                </label>
+                <label>
+                  <span>{t.contact.email}</span>
+                  <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+                </label>
+              </div>
+              <div className="form-row">
+                <label>
+                  <span>{t.contact.phone}</span>
+                  <input type="tel" value={form.phone} onChange={handlePhoneChange} required />
+                </label>
+                <label>
+                  <span>{t.contact.treatment}</span>
+                  <select value={form.treatment} onChange={e => setForm({ ...form, treatment: e.target.value })} required>
+                    <option value="">—</option>
+                    {t.contact.options.map(x => <option key={x}>{x}</option>)}
+                  </select>
+                </label>
+              </div>
               <label><span>{t.contact.message}</span><textarea rows="5" value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} /></label>
               <label className="checkbox"><input type="checkbox" checked={form.consent} onChange={e => setForm({ ...form, consent: e.target.checked })} required /><span>{t.contact.consent}</span></label>
-              <button className="btn btn--gold btn--submit" type="submit">{t.contact.submit}<ArrowUpRight size={16} /></button>
+              <div className="captcha-wrapper" style={{ margin: '15px 0' }}>
+                <ReCAPTCHA
+                  ref={recaptchaRef}
+                  sitekey={RECAPTCHA_SITE_KEY}
+                  onChange={(token) => setCaptchaToken(token)}
+                  onExpired={() => setCaptchaToken(null)}
+                />
+              </div>
+              <button className="btn btn--gold btn--submit" type="submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                    {locale === 'uk' ? 'Надсилання...' : 'Sending...'}
+                  </>
+                ) : (
+                  <>
+                    {t.contact.submit}
+                    <ArrowUpRight size={16} />
+                  </>
+                )}
+              </button>
               <small className="form-note">{t.contact.note}</small>
               {status.message && <div className={`form-status form-status--${status.type}`}>{status.message}</div>}
             </form>

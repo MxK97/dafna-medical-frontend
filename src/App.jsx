@@ -52,7 +52,6 @@ export default function App() {
   const [status, setStatus] = useState({ type: '', message: '' });
 
   const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState(null);
   const recaptchaRef = useRef(null);
 
   const t = translations[locale] || translations.en;
@@ -76,18 +75,7 @@ export default function App() {
     e.preventDefault();
     setStatus({ type: '', message: '' });
 
-    if (!captchaToken) {
-      setStatus({
-        type: 'error',
-        message: locale === 'uk' 
-          ? 'Будь ласка, підтвердіть, що ви не робот (пройдіть капчу).' 
-          : 'Please verify that you are not a robot.'
-      });
-      return;
-    }
-
     const emailTrimmed = form.email.trim().toLowerCase();
-
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     const reservedDomains = ['.test', '.example', '.invalid', '.localhost', '.local'];
     const isReserved = reservedDomains.some(domain => emailTrimmed.endsWith(domain));
@@ -115,6 +103,25 @@ export default function App() {
 
     setLoading(true);
 
+    // Програмний виклик невидимої капчі
+    let token = null;
+    try {
+      token = await recaptchaRef.current.executeAsync();
+    } catch (err) {
+      console.error('ReCAPTCHA execution error', err);
+    }
+
+    if (!token) {
+      setStatus({
+        type: 'error',
+        message: locale === 'uk' 
+          ? 'Не вдалося перевірити капчу. Спробуйте ще раз.' 
+          : 'Captcha verification failed. Please try again.'
+      });
+      setLoading(false);
+      return;
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
@@ -124,7 +131,7 @@ export default function App() {
       const response = await fetch(`${API_URL}/api/contact`, {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ ...form, locale, captchaToken }),
+        body: JSON.stringify({ ...form, locale, captchaToken: token }),
         signal: controller.signal,
       });
       
@@ -138,8 +145,6 @@ export default function App() {
       setStatus({ type: 'success', message: t.contact.success });
       setForm({ name: '', email: '', phone: '', treatment: '', message: '', consent: false });
 
-      setCaptchaToken(null);
-      recaptchaRef.current?.reset();
     } catch (err) {
       clearTimeout(timeoutId);
 
@@ -154,6 +159,7 @@ export default function App() {
         setStatus({ type: 'error', message: err.message || t.contact.error });
       }
     } finally {
+      recaptchaRef.current?.reset();
       setLoading(false);
     }
   }
@@ -272,12 +278,11 @@ export default function App() {
               </div>
               <label><span>{t.contact.message}</span><textarea rows="5" value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} /></label>
               <label className="checkbox"><input type="checkbox" checked={form.consent} onChange={e => setForm({ ...form, consent: e.target.checked })} required /><span>{t.contact.consent}</span></label>
-              <div className="captcha-wrapper" style={{ margin: '15px 0' }}>
+              <div className="captcha-wrapper">
                 <ReCAPTCHA
                   ref={recaptchaRef}
                   sitekey={RECAPTCHA_SITE_KEY}
-                  onChange={(token) => setCaptchaToken(token)}
-                  onExpired={() => setCaptchaToken(null)}
+                  size="invisible"
                 />
               </div>
               <button className="btn btn--gold btn--submit" type="submit" disabled={loading}>

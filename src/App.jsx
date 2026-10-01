@@ -81,29 +81,18 @@ export default function App() {
     const isReserved = reservedDomains.some(domain => emailTrimmed.endsWith(domain));
 
     if (!emailRegex.test(emailTrimmed) || isReserved) {
-      setStatus({ 
-        type: 'error', 
-        message: locale === 'uk' 
-          ? 'Введіть діючий email (домени .test, .example тощо заборонені)' 
-          : 'Please enter a valid, active email address' 
-      });
+      setStatus({ type: 'error', message: t.contact.validation.email });
       return;
     }
 
     const phoneRegex = /^\+?\d{7,15}$/;
     if (!phoneRegex.test(form.phone.trim())) {
-      setStatus({ 
-        type: 'error', 
-        message: locale === 'uk' 
-          ? 'Введіть коректний номер телефону (наприклад, +380123456789)' 
-          : 'Please enter a valid phone number' 
-      });
+      setStatus({ type: 'error', message: t.contact.validation.phone });
       return;
     }
 
     setLoading(true);
 
-    // Програмний виклик невидимої капчі
     let token = null;
     try {
       token = await recaptchaRef.current.executeAsync();
@@ -112,12 +101,7 @@ export default function App() {
     }
 
     if (!token) {
-      setStatus({
-        type: 'error',
-        message: locale === 'uk' 
-          ? 'Не вдалося перевірити капчу. Спробуйте ще раз.' 
-          : 'Captcha verification failed. Please try again.'
-      });
+      setStatus({ type: 'error', message: t.contact.validation.captcha });
       setLoading(false);
       return;
     }
@@ -149,12 +133,7 @@ export default function App() {
       clearTimeout(timeoutId);
 
       if (err.name === 'AbortError') {
-        setStatus({ 
-          type: 'error', 
-          message: locale === 'uk'
-            ? 'Час очікування відповіді вичерпано (2 хв). Перевірте з’єднання та спробуйте ще раз.'
-            : 'Request timed out (2 min). Please try again.'
-        });
+        setStatus({ type: 'error', message: t.contact.validation.timeout });
       } else {
         setStatus({ type: 'error', message: err.message || t.contact.error });
       }
@@ -199,7 +178,7 @@ export default function App() {
               {t.services.cards.map((card, i) => (
                 <article className="service-card" key={card.title}>
                   <div className="service-card__image"><img src={serviceImages[i]} alt="" /><span className="service-index">0{i + 1}</span></div>
-                  <div className="service-card__body"><h3>{card.title}</h3><p>{card.text}</p><a href="#contact">{locale === 'uk' ? 'Дізнатися більше' : locale === 'de' ? 'Mehr erfahren' : 'Learn more'} <ArrowUpRight size={14} /></a></div>
+                  <div className="service-card__body"><h3>{card.title}</h3><p>{card.text}</p><a href="#contact">{t.services.learnMore} <ArrowUpRight size={14} /></a></div>
                 </article>
               ))}
             </div>
@@ -212,7 +191,19 @@ export default function App() {
             <div>
               <SectionHeading eyebrow={t.why.eyebrow} title={t.why.title} subtitle={t.why.subtitle} />
               <div className="why-items">
-                {t.why.items.map((item, i) => { const icons = [Heart, Users, Stethoscope, MessageCircle, LockKeyhole, Globe2]; const Icon = icons[i]; return <div className="why-item" key={item}><span className="why-item__icon"><Icon size={18} /></span><div><h4>{item}</h4><p>{i === 0 ? 'One dedicated point of contact for your journey.' : i === 1 ? 'Access to experienced medical teams and specialists.' : i === 2 ? 'A plan shaped around your goals and priorities.' : i === 3 ? 'Practical coordination before, during and after care.' : i === 4 ? 'Your information and conversations are handled privately.' : 'Support for patients travelling from abroad.'}</p></div></div> })}
+                {t.why.items.map((item, i) => { 
+                  const icons = [Heart, Users, Stethoscope, MessageCircle, LockKeyhole, Globe2]; 
+                  const Icon = icons[i]; 
+                  return (
+                    <div className="why-item" key={item}>
+                      <span className="why-item__icon"><Icon size={18} /></span>
+                      <div>
+                        <h4>{item}</h4>
+                        <p>{t.why.descriptions[i]}</p>
+                      </div>
+                    </div>
+                  ) 
+                })}
               </div>
             </div>
           </div>
@@ -289,7 +280,7 @@ export default function App() {
                 {loading ? (
                   <>
                     <Loader2 size={16} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
-                    {locale === 'uk' ? 'Надсилання...' : 'Sending...'}
+                    {t.contact.sending}
                   </>
                 ) : (
                   <>

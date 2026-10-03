@@ -174,11 +174,22 @@ export default function App() {
         <section id="treatments" className="section section--cream">
           <div className="container">
             <SectionHeading eyebrow={t.services.eyebrow} title={t.services.title} subtitle={t.services.subtitle} />
-            <div className="services-grid">
+            <div className={`services-grid ${t.services.cards.some((c) => c.bullets) ? 'services-grid--detailed' : ''}`}>
               {t.services.cards.map((card, i) => (
                 <article className="service-card" key={card.title}>
                   <div className="service-card__image"><img src={serviceImages[i]} alt="" /><span className="service-index">0{i + 1}</span></div>
-                  <div className="service-card__body"><h3>{card.title}</h3><p>{card.text}</p><a href="#contact">{t.services.learnMore} <ArrowUpRight size={14} /></a></div>
+                  <div className="service-card__body">
+                    <h3>{card.title}</h3>
+                    {card.sub && <span className="service-card__sub">{card.sub}</span>}
+                    <p>{card.text}</p>
+                    {card.bullets && (
+                      <ul className="service-card__list">
+                        {card.bullets.map((b) => <li key={b.title}><strong>{b.title}:</strong> {b.text}</li>)}
+                      </ul>
+                    )}
+                    {card.note && <p className="service-card__note">{card.note}</p>}
+                    <a href="#contact">{t.services.learnMore} <ArrowUpRight size={14} /></a>
+                  </div>
                 </article>
               ))}
             </div>
@@ -189,8 +200,15 @@ export default function App() {
           <div className="container why-grid">
             <div className="why-photo"><div className="why-mosaic">{serviceImages.map((src) => <img key={src} src={src} alt="" />)}</div><div className="why-photo__badge"><span>10+</span><small>years of experience</small></div></div>
             <div>
+              {t.why.about && (
+                <div className="about-block">
+                  <h3>{t.why.about.title}</h3>
+                  {t.why.about.paragraphs.map((p) => <p key={p}>{p}</p>)}
+                  {t.why.about.closing && <p className="about-block__closing">{t.why.about.closing}</p>}
+                </div>
+              )}
               <SectionHeading eyebrow={t.why.eyebrow} title={t.why.title} subtitle={t.why.subtitle} />
-              <div className="why-items">
+              <div className={`why-items ${t.why.items.length <= 3 ? "why-items--stacked" : ""}`}>
                 {t.why.items.map((item, i) => { 
                   const icons = [Heart, Users, Stethoscope, MessageCircle, LockKeyhole, Globe2]; 
                   const Icon = icons[i]; 
@@ -211,7 +229,7 @@ export default function App() {
 
         <section id="specialists" className="section section--teal">
           <div className="container">
-            <SectionHeading light eyebrow={t.process.eyebrow} title={t.process.title} subtitle="" />
+            <SectionHeading light eyebrow={t.process.eyebrow} title={t.process.title} subtitle={t.process.subtitle || ''} />
             <div className="process-grid">
               {t.process.steps.map((step) => <article className="process-card" key={step.n}><div className="process-card__n">{step.n}</div><h3>{step.title}</h3><p>{step.text}</p></article>)}
             </div>
@@ -242,7 +260,11 @@ export default function App() {
 
         <section id="contact" className="contact-section">
           <div className="container contact-grid">
-            <div className="contact-copy"><div className="eyebrow"><span />{t.contact.eyebrow}<span /></div><h2>{t.contact.title}</h2><p>{t.contact.subtitle}</p><div className="contact-benefits"><div><Headphones /><span>{t.why.items[0]}<small>Dedicated point of contact</small></span></div><div><Diamond /><span>{t.why.items[2]}<small>Built around your needs</small></span></div><div><Globe2 /><span>{t.why.items[5]}<small>International patient support</small></span></div></div></div>
+            <div className="contact-copy"><div className="eyebrow"><span />{t.contact.eyebrow}<span /></div><h2>{t.contact.title}</h2><p>{t.contact.subtitle}</p><div className="contact-benefits">{(t.contact.benefits || [
+              { title: t.why.items[0], text: 'Dedicated point of contact' },
+              { title: t.why.items[2], text: 'Built around your needs' },
+              { title: t.why.items[5], text: 'International patient support' },
+            ]).map((b, i) => { const BIcon = [Headphones, Diamond, Globe2][i]; return <div key={b.title}><BIcon /><span>{b.title}<small>{b.text}</small></span></div>; })}</div></div>
             <form className="contact-form" onSubmit={submitForm}>
               <div className="form-row">
                 <label>

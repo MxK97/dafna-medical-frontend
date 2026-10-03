@@ -50,7 +50,7 @@ button {
 }
 
 .site {
-  overflow: hidden
+  overflow: clip
 }
 
 .navbar-wrap {
@@ -598,15 +598,16 @@ button {
   display: grid;
   grid-template-columns: .9fr 1.1fr;
   gap: 82px;
-  align-items: center
+  align-items: start;
 }
 
 .why-photo {
-  position: relative;
+  position: sticky;
+  top: max(120px, calc(50vh - 270px));
   border-radius: 28px;
   overflow: hidden;
   box-shadow: var(--shadow);
-  aspect-ratio: .88
+  aspect-ratio: .88;
 }
 
 .why-mosaic {
@@ -1148,7 +1149,10 @@ button {
 
   .why-photo {
     max-width: 510px;
-    margin-inline: auto
+    margin-inline: auto;
+    position: relative; 
+    top: auto;          
+    transform: none;
   }
 
   .testimonials-grid {
@@ -1273,4 +1277,79 @@ button {
 .spinner {
   animation: spin 1s linear infinite;
   margin-right: 8px;
+}
+/* Detailed service cards + about block (content-rich Hebrew copy) */
+.services-grid--detailed {
+  grid-template-columns: 1fr 1fr;
+  gap: 22px
+}
+
+.services-grid--detailed .service-card__body p {
+  min-height: 0;
+  font-size: 13px
+}
+
+.service-card__sub {
+  display: block;
+  margin: -4px 0 10px;
+  font-size: 12px;
+  color: var(--gold);
+  font-weight: 600
+}
+
+.service-card__list {
+  list-style: disc;
+  padding-inline-start: 18px;
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #5d6e70
+}
+
+.service-card__list li {
+  margin-bottom: 8px
+}
+
+.service-card__list strong {
+  color: var(--teal)
+}
+
+.about-block {
+  margin-bottom: 34px
+}
+
+.about-block h3 {
+  font-size: 22px;
+  color: var(--teal);
+  margin: 0 0 14px
+}
+
+.about-block p {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #5d6e70;
+  margin: 0 0 12px
+}
+
+.about-block .about-block__closing {
+  color: var(--teal);
+  font-weight: 700
+}
+
+[dir="rtl"] .why-grid .section-heading {
+  text-align: right
+}
+
+[dir="rtl"] .why-grid .section-heading .eyebrow {
+  justify-content: flex-start
+}
+
+@media (max-width: 1020px) {
+  .services-grid--detailed {
+    grid-template-columns: 1fr
+  }
+}
+
+.why-items--stacked {
+  grid-template-columns: 1fr
 }
